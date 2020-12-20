@@ -31,13 +31,13 @@ public class AVERAGE {
           dfs(i);
           for (int node : cc) {
             if (degree[node] != cc.size() - 1) {
-              out.println("NO");
+//              out.println("NO");
               return;
             }
           }
         }
       }
-      out.println("YES");
+//      out.println("YES");
     }
 
     void dfs(int cur) {
@@ -54,11 +54,9 @@ public class AVERAGE {
   }
 
   public static void main(String... args) throws Exception {
-    long millis = System.currentTimeMillis();
     InputReader in = new InputReader("AVERAGE.in");
     PrintWriter out = new PrintWriter(System.out);
     new Solver().solve(in, out);
-    out.printf("\nExecution Time: %dms\n", System.currentTimeMillis() - millis);
     out.close();
     in.close();
   }

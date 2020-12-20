@@ -1,93 +1,185 @@
 #!/bin/bash
 
-# judge <JAVA|C|CPP|PYTHON|PYTHON3> <CODE> <INPUT> <OUTPUT>
-# judge test <LIGHT|AVERAGE|HEAVY>
+function invalid_usage() {
+  echo "
+    Invalid usage of judge.
+    Type 'judge help' for usage guide.
+  "
 
-# Handle test command separately
-case $1 in
-test)
-  cd /examples
-  javac "$2.java" >/dev/null 2>&1
-  java "$2" >/dev/null 2>&1
-  rm ./*.class
-  echo "Done"
+  exit 1
+}
+
+function clean_workdir() {
+  cd .. || exit 1
+
+  rm -rf "$1"
+}
+
+function exec_and_get_time_ms() {
+  start=$(date +%s%3N)
+
+  eval "$1"
+
+  end=$(date +%s%3N)
+
+  echo $((end - start))
+}
+
+function send_verdict() {
+  if [ $# -eq 3 ]; then
+    clean_workdir "$3"
+  fi
+
+  json=$(jq -c -n --arg verdict "$1" --arg message "$2" '{verdict: $verdict, message: $message}')
+
+  echo "$json"
+
   exit 0
-  ;;
-esac
+}
 
-# Checks for 'Compilation Error (CE)' and 'Runtime Error (RE)', and sends verdict if error found
+function test() {
+  cd /examples || exit 1
+
+  javac "$1.java" >/dev/null 2>&1
+
+  time=$(exec_and_get_time_ms "java $1 >/dev/null 2>&1")
+
+  send_verdict "AC" "Finished in $time ms."
+}
+
 function check_error() {
   if [ -s ./error ]; then
-    send_verdict "$1" "$(cat ./error)"
+    send_verdict "$1" "$2" "$3"
   fi
 }
 
-# Checks for differences between output and intended output, and sends verdict if difference found
 function check_diff() {
-  diff -b output expected_output >dif
+  diff -Z -b output expected_output >dif
+
   if [ -s ./dif ]; then
-    send_verdict "WA" "Program outputs different result."
+    send_verdict "WA" "Wrong Answer" "$1"
   fi
 }
 
-# Outputs verdict JSON
-# The message inside needs to be decoded as well after decoding JSON
-function send_verdict() {
-  json=$(jq -c -n --arg verdict "$1" --arg message "$2" '{verdict: $verdict, message: $message}')
-  echo "$json"
-  exit 0
+function compile() {
+  case $1 in
+  JAVA)
+    mv ./code ./Main.java
+    javac Main.java 2>error
+    ;;
+
+  C)
+    mv ./code ./code.c
+    gcc code.c -o code 2>error
+    ;;
+
+  CPP)
+    mv ./code ./code.cpp
+    g++ code.cpp -o code 2>error
+    ;;
+
+  PYTHON)
+    mv ./code ./code.py
+    python -m py_compile code.py 2>error
+    ;;
+
+  PYTHON3)
+    mv ./code ./code.py
+    python3 -m py_compile code.py 2>error
+    ;;
+  esac
+
+  check_error "CE" "Compilation Error" "$2"
 }
 
-# Create a random directory to be our work directory
-dir="dir-$(date +%s)-$RANDOM"
-mkdir "$dir"
-cd "$dir"
+function execute() {
+  case $1 in
+  JAVA)
+    cmd="timeout $2.05 java Main <input >output 2>error"
+    ;;
 
-# Copy all necessary files to work directory
-# All data are base64 encoded and should be decoded before copy
-echo "$2" | base64 --decode >code
-echo "$3" | base64 --decode >input
-echo "$4" | base64 --decode >expected_output
+  C)
+    cmd="timeout $2.05 ./code <input >output 2>error"
+    ;;
 
-# Compile and execute code depending on the programming language
+  CPP)
+    cmd="timeout $2.05 ./code <input >output 2>error"
+    ;;
+
+  PYTHON)
+    cmd="timeout $2.05 python code.py <input >output 2>error"
+    ;;
+
+  PYTHON3)
+    cmd="timeout $2.05 python3 code.py <input >output 2>error"
+    ;;
+  esac
+
+  if ! eval "$cmd"; then
+    send_verdict "TLE" "Time Limit Exceeded" "$3"
+  fi
+
+  check_error "RE" "Runtime Error" "$3"
+}
+
+# ===================================
+
+# Usage:
+#   judge run <JAVA|C|CPP|PYTHON|PYTHON3> <CODE> <INPUT> <OUTPUT> <TIME_LIMIT>
+#   judge test <LIGHT|AVERAGE|HEAVY>
+
+if [ $# -eq 0 ]; then
+  invalid_usage
+fi
+
 case $1 in
-JAVA)
-  mv ./code ./Main.java
-  javac Main.java 2>error
-  check_error "CE"
-  java Main <input >output 2>error
+run)
+  if [ $# -ne 6 ]; then
+    invalid_usage
+  fi
+
+  case $2 in
+  JAVA | C | CPP | PYTHON | PYTHON3)
+    dir="dir-$(date +%s)-$RANDOM"
+    mkdir "$dir"
+    cd "$dir" || exit 1
+
+    echo "$3" | base64 --decode >code
+    echo "$4" | base64 --decode >input
+    echo "$5" | base64 --decode >expected_output
+
+    compile "$2" "$dir"
+
+    execute "$2" "$6" "$dir"
+
+    check_diff "$dir"
+
+    send_verdict "AC" "Accepted" "$dir"
+    ;;
+
+  *)
+    invalid_usage
+    ;;
+  esac
   ;;
-C)
-  mv ./code ./code.c
-  gcc code.c -o code 2>error
-  check_error "CE"
-  ./code <input >output 2>error
+
+test)
+  if [ $# -ne 2 ]; then
+    invalid_usage
+  fi
+
+  case $2 in
+  LIGHT | AVERAGE | HEAVY)
+    test "$2"
+    ;;
+
+  *)
+    invalid_usage
+    ;;
+  esac
   ;;
-CPP)
-  mv ./code ./code.cpp
-  g++ code.cpp -o code 2>error
-  check_error "CE"
-  ./code <input >output 2>error
-  ;;
-PYTHON)
-  mv ./code ./code.py
-  python -m py_compile code.py 2>error
-  check_error "CE"
-  python code.py <input >output 2>error
-  ;;
-PYTHON3)
-  mv ./code ./code.py
-  python3 -m py_compile code.py 2>error
-  check_error "CE"
-  python3 code.py <input >output 2>error
+
+*)
+  invalid_usage
   ;;
 esac
-
-check_error "RE"
-check_diff
-
-# Delete work directory
-cd ..
-rm -rf "$dir"
-
-send_verdict "AC" "All tests passed"

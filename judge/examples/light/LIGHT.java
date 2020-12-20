@@ -1,7 +1,7 @@
 import java.util.*;
 import java.io.*;
 
-public class AVERAGE {
+public class LIGHT {
   static class Solver {
     void solve(InputReader in, PrintWriter out) throws Exception {
 
