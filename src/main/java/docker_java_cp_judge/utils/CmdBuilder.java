@@ -7,31 +7,28 @@ import java.io.IOException;
 import java.util.Base64;
 
 public class CmdBuilder {
-  @Value("${service.cmd}")
-  private static String cmd;
-
-  @Value("${service.test_cmd}")
-  private static String testCmd;
-
   private CmdBuilder() {
   }
 
   public static String[] buildCmd(
-    MultipartFile codeFile,
-    String input,
-    String expectedOutput,
-    String language
+          String language,
+          MultipartFile codeFile,
+          String input,
+          String expectedOutput,
+          int timeLimit
   ) throws IOException {
     return new String[]{
-      cmd,
-      language,
-      Base64.getEncoder().encodeToString(codeFile.getBytes()),
-      input,
-      expectedOutput
+            "judge",
+            "run",
+            language,
+            Base64.getEncoder().encodeToString(codeFile.getBytes()),
+            input,
+            expectedOutput,
+            String.valueOf(timeLimit)
     };
   }
 
   public static String[] buildTestCmd(String load) {
-    return new String[]{cmd, testCmd, load};
+    return new String[]{"judge", "test", load};
   }
 }

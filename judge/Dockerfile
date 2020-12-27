@@ -4,7 +4,7 @@ RUN apt-get update \
     && apt-get install -y build-essential python python3 jq
 
 COPY ./entrypoint.sh /entrypoint.sh
-
+g
 RUN chmod +x /entrypoint.sh
 
 COPY ./examples/light/ /examples/

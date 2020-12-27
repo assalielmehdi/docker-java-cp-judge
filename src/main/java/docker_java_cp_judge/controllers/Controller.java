@@ -24,13 +24,14 @@ public class Controller {
 
   @PostMapping(path = "/submit")
   public DeferredResult<ResponseEntity<String>> postSubmission(
-    @RequestPart MultipartFile codeFile,
-    @RequestParam String input,
-    @RequestParam String expectedOutput,
-    @RequestParam String language
+          @RequestParam String language,
+          @RequestPart MultipartFile codeFile,
+          @RequestParam String input,
+          @RequestParam String expectedOutput,
+          @RequestParam int timeLimit
   ) throws IOException {
     String containerId = scheduler.schedule();
-    String[] cmd = CmdBuilder.buildCmd(codeFile, input, expectedOutput, language);
+    String[] cmd = CmdBuilder.buildCmd(language, codeFile, input, expectedOutput, timeLimit);
     return run(containerId, cmd);
   }
 

@@ -8,8 +8,6 @@ server:
 
 service:
   image: ${SERVICE_IMAGE:assalielmehdi/judge}
-  cmd: ${SERVICE_CMD:judge}
-  test_cmd: ${SERVICE_TEST_CMD:test}
 
 config:
   max_running_containers: 10
